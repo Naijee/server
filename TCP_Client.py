@@ -16,7 +16,7 @@ def client(host,port,UserName):
 		while True :
 			if(EXIT == False):
 				msg = input('')
-				if(msg == '\exit'):
+				if(msg == '\logout'):
 					EXIT = True
 				msg = msg.encode('utf-8')
 				msg = struct.pack('>I', len(msg)) + msg

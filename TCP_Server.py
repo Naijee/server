@@ -4,6 +4,7 @@ import time
 CONNECTION_LIST = {}
 UserList = {'Alice':'aaaa','Bob':'bbbb','Cindy':'cccc'}
 messagepool = {}
+coversation_LIST = {}
 
 def recv_msg(sock):
     # Read message length and unpack it into an integer
@@ -68,27 +69,39 @@ def handle_request(sock):
 	message = recv_msg(sock)
 	#print(GetUserName(sock) ,'said: ',message.decode("utf-8"))
 	#print('talkto' in message.decode("utf-8"))
-	if('\list' in message.decode("utf-8")):
-		sendlist(sock)
-		return True
-	elif('\exit' in message.decode("utf-8")):
-		closescock(sock)
-		return False
-	elif('talkto' in message.decode("utf-8")):
-		talkto(sock,message)
-		return True
-	else :
-		fromuser = GetUserName(sock)
-		message = message.decode("utf-8")
-		message = '(Broadcast message from ' + fromuser + ')' + message
-		message = message.encode("utf-8")
-		message = struct.pack('>I', len(message)) + message
-		broadcast_data(sock,message)
-		return True
-	#broadcast_data(sock,message)
-	#sock.sendall(message)
-	#sock.close()	
-
+	print('A conversation : ' , GetUserName(sock) in coversation_LIST)
+	if(GetUserName(sock) in coversation_LIST) :
+		if('\exit' in message.decode("utf-8")):
+			BreakConversation(sock)
+			return True
+		else : 
+			print('coversation_LIST : ' , coversation_LIST)
+			AConversation(sock,message)
+			return True
+	else : 
+		print(coversation_LIST)
+		if('\list' in message.decode("utf-8")):
+				sendlist(sock)
+				return True
+		elif('\logout' in message.decode("utf-8")):
+			closescock(sock)
+			return False
+		elif('talkto' in message.decode("utf-8")):
+			talkto(sock,message)
+			return True
+		elif('makecon' in message.decode("utf-8")):
+			MakeConversation(sock,message)
+			print('We make a conversation!!')
+			return True
+		else :
+			fromuser = GetUserName(sock)
+			message = message.decode("utf-8")
+			message = '(Broadcast message from ' + fromuser + ')' + message
+			message = message.encode("utf-8")
+			message = struct.pack('>I', len(message)) + message
+			broadcast_data(sock,message)
+			return True
+		
 def broadcast_data (sock, message):
 	for user in CONNECTION_LIST:
 		if CONNECTION_LIST[user] != sock:
@@ -142,7 +155,7 @@ def sendlist(sock):
 	print(sock.getpeername())
 	sock.sendall(str)
 
-def  talkto(sock,message) :
+def talkto(sock,message) :
 	str = ''
 	fromuser = ''
 	message = message.decode("utf-8")
@@ -192,5 +205,45 @@ def OffLineMessage(sock):
 			delmessage.append(message)
 	for message in delmessage :
 		del messagepool[message] 
-			
-
+		
+def MakeConversation(sock,message):
+	str = ''
+	touser = ''
+	message = message.decode("utf-8")
+	tmp = message.strip().split(' ')
+	for user in CONNECTION_LIST:
+		if user == tmp[1]:
+			try : 
+				print(GetUserName(sock) ,'make a conversation to', GetUserName(CONNECTION_LIST[user]))
+				coversation_LIST[GetUserName(sock)] =  GetUserName(CONNECTION_LIST[user])
+			except :
+				print('error')
+				CONNECTION_LIST[user].close()
+				del CONNECTION_LIST[user]
+				
+def AConversation(sock,message):
+	message = message.decode("utf-8")
+	fromuser = GetUserName(sock)
+	msg = fromuser + ' say : ' + message
+	msg = msg.encode("utf-8")
+	msg = struct.pack('>I', len(msg)) + msg
+	Touser = coversation_LIST[GetUserName(sock)]
+	if(Touser in CONNECTION_LIST):
+		print(Touser)
+		for user in CONNECTION_LIST:
+			if user == Touser:
+				try : 
+					print(GetUserName(sock) ,'talk to', GetUserName(CONNECTION_LIST[user]) , ' : ' , msg.decode("utf-8"))
+					CONNECTION_LIST[user].sendall(msg)
+				except :
+					print('error')
+					CONNECTION_LIST[user].close()
+					del CONNECTION_LIST[user]
+	else:
+		messagepool[msg] = Touser
+		print(messagepool)
+	
+def BreakConversation(sock):
+	user = GetUserName(sock)
+	print(user,'colse the conversation to ', coversation_LIST[user])
+	del coversation_LIST[user] 
